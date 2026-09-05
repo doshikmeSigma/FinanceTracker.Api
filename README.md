@@ -5,6 +5,7 @@ A personal finance tracking REST API built with ASP.NET Core.
 ## Tech Stack
 - ASP.NET Core Web API (.NET 10)
 - Entity Framework Core + SQLite
+- xUnit
 - JWT Bearer authentication (HMAC-SHA256)
 - PBKDF2 password hashing with per-user salt
 - OpenAPI + Scalar reference
