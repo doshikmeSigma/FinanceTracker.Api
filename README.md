@@ -17,7 +17,7 @@ A personal finance tracking REST API built with ASP.NET Core.
 - Reports: per-category summary and income/expense totals with date filtering
 
 ## Warning
-- The secrets in appsetting.json are left for ease of use in the training project. In production, use user-secrets / environment variables
+- The secrets in appsettings.json are left for ease of use in the training project. In production, use user-secrets / environment variables
 
 ## Getting Started
 ```bash
