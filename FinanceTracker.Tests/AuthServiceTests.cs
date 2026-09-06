@@ -1,4 +1,5 @@
 ﻿using FinanceTracker.Api.DTOs;
+using FinanceTracker.Api.Extensions;
 using FinanceTracker.Api.Models;
 using FinanceTracker.Api.Services;
 using FinanceTracker.Tests.Helpers;
@@ -49,9 +50,22 @@ namespace FinanceTracker.Tests
             var context = TestDbContextFactory.Create();
             var tokenService = new FakeTokenService();
             var authService = new AuthService(context, tokenService);
+            var password = "TestPassword123!";
+            var (hash, salt) = PasswordHasher.Hash(password);
+            context.Users.Add(new User
+            {
+                Email = "user@test.com",
+                PasswordHash = hash,
+                PasswordSalt = salt
+            });
+            await context.SaveChangesAsync();
+            var request = new LoginRequest
+            {
+                Email = "user@test.com",
+                Password = password
+            };
 
-            await authService.RegisterAsync(new RegisterRequest { Email = "mog@gmail.com", Password = "youhavebeenmogged" });
-            var result = await authService.LoginAsync(new LoginRequest { Email = "mog@gmail.com", Password = "youhavebeenmogged" });
+            var result = await authService.LoginAsync(request);
 
             Assert.NotNull(result);
             Assert.Equal("fake-token-for-testing", result.Token);
@@ -64,9 +78,21 @@ namespace FinanceTracker.Tests
             var context = TestDbContextFactory.Create();
             var tokenService = new FakeTokenService();
             var authService = new AuthService(context, tokenService);
+            var (hash, salt) = PasswordHasher.Hash("CorrectPassword123!");
+            context.Users.Add(new User
+            {
+                Email = "user@test.com",
+                PasswordHash = hash,
+                PasswordSalt = salt
+            });
+            await context.SaveChangesAsync();
+            var request = new LoginRequest
+            {
+                Email = "user@test.com",
+                Password = "WrongPassword456!"
+            };
 
-            await authService.RegisterAsync(new RegisterRequest { Email = "mog@gmail.com", Password = "youhavebeenmogged" });
-            var result = await authService.LoginAsync(new LoginRequest { Email = "mog@gmail.com", Password = "lie" });
+            var result = await authService.LoginAsync(request);
 
             Assert.Null(result);
         }
@@ -77,9 +103,13 @@ namespace FinanceTracker.Tests
             var context = TestDbContextFactory.Create();
             var tokenService = new FakeTokenService();
             var authService = new AuthService(context, tokenService);
+            var request = new LoginRequest
+            {
+                Email = "nonexistent@test.com",
+                Password = "TestPassword123!"
+            };
 
-            await authService.RegisterAsync(new RegisterRequest { Email = "mog@gmail.com", Password = "youhavebeenmogged" });
-            var result = await authService.LoginAsync(new LoginRequest { Email = "lie@gmail.com", Password = "youhavebeenmogged" });
+            var result = await authService.LoginAsync(request);
 
             Assert.Null(result);
         }
