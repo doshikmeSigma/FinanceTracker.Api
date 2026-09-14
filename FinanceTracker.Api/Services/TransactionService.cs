@@ -38,6 +38,8 @@ namespace FinanceTracker.Api.Services
             var categoryExists = await _context.Categories.AnyAsync(c => c.UserId == userId && c.Id == request.CategoryId);
             if (!categoryExists) return null;
 
+            if (request.Amount <= 0) throw new ArgumentException("Сумма должна быть больше 0");
+            if (request.Date > DateTime.UtcNow) throw new ArgumentException("Недопустимы будущие даты");
             var transaction = new Transaction
             {
                 Amount = request.Amount,
@@ -58,6 +60,9 @@ namespace FinanceTracker.Api.Services
             var transaction = await _context.Transactions.FindAsync(id);
             if (transaction == null) return TransactionUpdateResult.NotFound;
             else if (transaction.UserId != userId) return TransactionUpdateResult.NotFound;
+
+            if (request.Amount <= 0) throw new ArgumentException("Сумма должна быть больше 0");
+            if (request.Date > DateTime.UtcNow) throw new ArgumentException("Недопустимы будущие даты");
 
             var categoryExists = await _context.Categories.AnyAsync(c => c.UserId == userId && c.Id == request.CategoryId);
             if (!categoryExists) return TransactionUpdateResult.CategoryNotFound;

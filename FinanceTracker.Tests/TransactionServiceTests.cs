@@ -4,35 +4,12 @@ using FinanceTracker.Api.Models;
 using FinanceTracker.Api.Services;
 using FinanceTracker.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
+using static FinanceTracker.Tests.Helpers.TestDataFactory;
 
 namespace FinanceTracker.Tests
 {
     public class TransactionServiceTests
     {
-        private async Task<User> CreateUser(AppDbContext context, string email, string passwordHash, string passwordSalt)
-        {
-            var user = new User { Email = email, PasswordHash = passwordHash, PasswordSalt = passwordSalt };
-            context.Users.Add(user);
-            await context.SaveChangesAsync();
-            return user;
-        }
-
-        private async Task<Category> CreateCategory(AppDbContext context, string name, string type, int userId)
-        {
-            var category = new Category { Name = name, Type = type, UserId = userId };
-            context.Categories.Add(category);
-            await context.SaveChangesAsync();
-            return category;
-        }
-
-        private async Task<Transaction> CreateTransaction(AppDbContext context, int amount, DateTime date, string note, int userId, int categoryId)
-        {
-            var transaction = new Transaction { Amount = amount, Date = date, Note = note, UserId = userId, CategoryId = categoryId };
-            context.Transactions.Add(transaction);
-            await context.SaveChangesAsync();
-            return transaction;
-        }
-
         private async Task<(AppDbContext context, TransactionService service, User user1, User user2, Category cat1, Category cat2, Transaction tra1, Transaction tra2)> Arrange()
         {
             var context = TestDbContextFactory.Create();
@@ -45,7 +22,6 @@ namespace FinanceTracker.Tests
             var tra2 = await CreateTransaction(context, 90000, DateTime.UtcNow, "ура, зпшка", user2.Id, cat2.Id);
             return (context, service, user1, user2, cat1, cat2, tra1, tra2);
         }
-
 
         [Fact]
         public async Task GetAllAsync_ReturnsOnlyUserTransactions()
@@ -198,6 +174,52 @@ namespace FinanceTracker.Tests
 
             Assert.Equal((3000, "дорого"), (firstCategories[0].Amount, firstCategories[0].Note));
             Assert.Equal((90000, "ура, зпшка"), (secondCategories[0].Amount, secondCategories[0].Note));
+        }
+
+        [Fact]
+        public async Task CreateTransaction_NegativeAmount_HandlesGracefully()
+        {
+            var (_, service, user1, _, cat1, _, _, _) = await Arrange();
+
+            await Assert.ThrowsAsync<ArgumentException>(() => service.CreateAsync(user1.Id, new CreateTransactionRequest { Amount = -232, CategoryId = cat1.Id, Date = DateTime.UtcNow, Note = "сумма меньше 0, нельзя" }));
+        }
+
+        [Fact]
+        public async Task CreateTransaction_NullNote_HandlesGracefully()
+        {
+            var (_, service, user1, _, cat1, _, _, _) = await Arrange();
+
+            var transaction = await service.CreateAsync(user1.Id, new CreateTransactionRequest { Amount = 24000, CategoryId = cat1.Id, Date = DateTime.UtcNow, Note = "" });
+
+            Assert.Equal("", transaction!.Note);
+        }
+
+        [Fact]
+        public async Task CreateTransaction_FutureDate_HandlesGracefully()
+        {
+            var (_, service, user1, _, cat1, _, _, _) = await Arrange();
+
+            await Assert.ThrowsAsync<ArgumentException>(() => service.CreateAsync(user1.Id, new CreateTransactionRequest { Amount = 27000, CategoryId = cat1.Id, Date = DateTime.UtcNow.AddDays(3), Note = "будущая дата, нельзя" }));
+        }
+
+        [Fact]
+        public async Task GetByIdAsync_NonExistentId_ReturnsNull()
+        {
+            var (_, service, user1, _, cat1, _, _, _) = await Arrange();
+
+            var transaction = await service.GetByIdAsync(user1.Id, 9999999);
+
+            Assert.Null(transaction);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_NonExistentId_ReturnsFalse()
+        {
+            var (_, service, user1, _, cat1, _, _, _) = await Arrange();
+
+            var transaction = await service.UpdateAsync(user1.Id, 9999999, new UpdateTransactionRequest { Amount = 999, CategoryId = cat1.Id, Date = DateTime.UtcNow, Note = "вернет false"});
+
+            Assert.Equal(TransactionUpdateResult.NotFound, transaction);
         }
     }
 }

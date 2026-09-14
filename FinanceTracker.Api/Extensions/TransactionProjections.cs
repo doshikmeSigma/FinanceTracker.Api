@@ -25,7 +25,9 @@ namespace FinanceTracker.Api.Extensions
         public static IQueryable<Transaction> ProcessByDate(this IQueryable<Transaction> query, int userId, DateTime? from, DateTime? to)
         {
             if (from != null) query = query.Where(t => t.UserId == userId && t.Date >= from);
+            else query = query.Where(t => t.UserId == userId);
             if (to != null) query = query.Where(t => t.UserId == userId && t.Date < to.Value.AddDays(1));
+            else query = query.Where(t => t.UserId == userId);
 
             return query;
         }
