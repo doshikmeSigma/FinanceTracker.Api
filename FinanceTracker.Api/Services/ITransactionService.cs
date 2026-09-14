@@ -4,7 +4,7 @@ namespace FinanceTracker.Api.Services
 {
     public interface ITransactionService
     {
-        Task<List<TransactionResponse>> GetAllAsync(int userId, int? categoryId = null);
+        Task<PaginationResponse<TransactionResponse>> GetAllAsync(int userId, int page, int pageSize, int? categoryId = null);
         Task<TransactionResponse?> GetByIdAsync(int userId, int id);
         Task<TransactionResponse?> CreateAsync(int userId, CreateTransactionRequest request);
         Task<TransactionUpdateResult> UpdateAsync(int userId, int id, UpdateTransactionRequest request);

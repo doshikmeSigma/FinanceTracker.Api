@@ -12,9 +12,9 @@ namespace FinanceTracker.Api.Controllers
     public class TransactionsController(ITransactionService _service) : ControllerBase
     {
         [HttpGet]
-        public async Task<ActionResult<List<TransactionResponse>>> GetAll([FromQuery] int? categoryId = null)
+        public async Task<ActionResult<PaginationResponse<TransactionResponse>>> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] int? categoryId = null)
         {
-            return Ok(await _service.GetAllAsync(User.GetId(), categoryId));
+            return Ok(await _service.GetAllAsync(User.GetId(), page, pageSize, categoryId));
         }
 
         [HttpGet("{id}")]

@@ -10,7 +10,7 @@ namespace FinanceTracker.Tests
 {
     public class TransactionServiceTests
     {
-        private async Task<(AppDbContext context, TransactionService service, User user1, User user2, Category cat1, Category cat2, Transaction tra1, Transaction tra2)> Arrange()
+        private async Task<(AppDbContext context, TransactionService service, User user1, User user2, Category cat1, Category cat2, Transaction tra1, Transaction tra2)> Arrange(bool flag = false)
         {
             var context = TestDbContextFactory.Create();
             var service = new TransactionService(context);
@@ -20,6 +20,21 @@ namespace FinanceTracker.Tests
             var cat2 = await CreateCategory(context, "Работа", "Доход", user2.Id);
             var tra1 = await CreateTransaction(context, 10000, DateTime.UtcNow, "эх, магаз", user1.Id, cat1.Id);
             var tra2 = await CreateTransaction(context, 90000, DateTime.UtcNow, "ура, зпшка", user2.Id, cat2.Id);
+
+            if (flag)
+            {
+                var cat3 = await CreateCategory(context, "Хобби", "Расход", user1.Id);
+                var cat4 = await CreateCategory(context, "Аптека", "Расход", user1.Id);
+                var cat5 = await CreateCategory(context, "Коммунальные услуги", "Расход", user1.Id);
+                var cat6 = await CreateCategory(context, "Одежда", "Расход", user1.Id);
+                var cat7 = await CreateCategory(context, "Подарки", "Расход", user1.Id);
+                await CreateTransaction(context, 3200, DateTime.UtcNow, "абонемент в бассик", user1.Id, cat3.Id);
+                await CreateTransaction(context, 2600, DateTime.UtcNow, "дорогие лекарства", user1.Id, cat4.Id);
+                await CreateTransaction(context, 1700, DateTime.UtcNow, "подняли коммуналку", user1.Id, cat5.Id);
+                await CreateTransaction(context, 5600, DateTime.UtcNow, "закупился в гуме", user1.Id, cat6.Id);
+                await CreateTransaction(context, 2300, DateTime.UtcNow, "девушке на цветы", user1.Id, cat7.Id);
+            }
+
             return (context, service, user1, user2, cat1, cat2, tra1, tra2);
         }
 
@@ -28,13 +43,13 @@ namespace FinanceTracker.Tests
         {
             var (context, service, user1, user2, cat1, cat2, tra1, tra2) = await Arrange();
 
-            var transactions1 = await service.GetAllAsync(user1.Id);
-            var transactions2 = await service.GetAllAsync(user2.Id);
+            var paginationResponse1 = await service.GetAllAsync(user1.Id, 1, 100);
+            var paginationResponse2 = await service.GetAllAsync(user2.Id, 1, 100);
 
-            Assert.Single(transactions1);
-            Assert.Equal("эх, магаз", transactions1[0].Note);
-            Assert.Single(transactions2);
-            Assert.Equal("ура, зпшка", transactions2[0].Note);
+            Assert.Single(paginationResponse1.Items);
+            Assert.Equal("эх, магаз", paginationResponse1.Items[0].Note);
+            Assert.Single(paginationResponse2.Items);
+            Assert.Equal("ура, зпшка", paginationResponse2.Items[0].Note);
         }
 
         [Fact]
@@ -169,11 +184,11 @@ namespace FinanceTracker.Tests
             var tra4 = await CreateTransaction(context, 56400, DateTime.UtcNow, "очень дорого", user2.Id, cat4.Id);
             await context.SaveChangesAsync();
 
-            var firstCategories = await service.GetAllAsync(user1.Id, 3);
-            var secondCategories = await service.GetAllAsync(user2.Id, 2);
+            var paginationResponse1 = await service.GetAllAsync(user1.Id, 1, 100, 3);
+            var paginationResponse2 = await service.GetAllAsync(user2.Id, 1, 100, 2);
 
-            Assert.Equal((3000, "дорого"), (firstCategories[0].Amount, firstCategories[0].Note));
-            Assert.Equal((90000, "ура, зпшка"), (secondCategories[0].Amount, secondCategories[0].Note));
+            Assert.Equal((3000, "дорого"), (paginationResponse1.Items[0].Amount, paginationResponse1.Items[0].Note));
+            Assert.Equal((90000, "ура, зпшка"), (paginationResponse2.Items[0].Amount, paginationResponse2.Items[0].Note));
         }
 
         [Fact]
@@ -217,9 +232,106 @@ namespace FinanceTracker.Tests
         {
             var (_, service, user1, _, cat1, _, _, _) = await Arrange();
 
-            var transaction = await service.UpdateAsync(user1.Id, 9999999, new UpdateTransactionRequest { Amount = 999, CategoryId = cat1.Id, Date = DateTime.UtcNow, Note = "вернет false"});
+            var transaction = await service.UpdateAsync(user1.Id, 9999999, new UpdateTransactionRequest { Amount = 999, CategoryId = cat1.Id, Date = DateTime.UtcNow, Note = "вернет false" });
 
             Assert.Equal(TransactionUpdateResult.NotFound, transaction);
+        }
+
+        [Fact]
+        public async Task GetAllAsync_FirstPage_ReturnsCorrectItems()
+        {
+            var (context, service, user1, _, cat1, _, _, _) = await Arrange(true);
+
+            var paginationResponse = await service.GetAllAsync(1, 1, 2);
+
+            Assert.Equal(2, paginationResponse.Items.Count);
+            Assert.Equal(6, paginationResponse.TotalCount);
+            Assert.Equal(3, paginationResponse.TotalPages);
+            Assert.False(paginationResponse.HasPreviousPage);
+            Assert.True(paginationResponse.HasNextPage);
+        }
+
+        [Fact]
+        public async Task GetAllAsync_LastPage_HasNoNextPage()
+        {
+            var (context, service, user1, _, cat1, _, _, _) = await Arrange(true);
+
+            var paginationResponse = await service.GetAllAsync(1, 3, 2);
+
+            Assert.Equal(2, paginationResponse.Items.Count);
+            Assert.Equal(6, paginationResponse.TotalCount);
+            Assert.Equal(3, paginationResponse.TotalPages);
+            Assert.True(paginationResponse.HasPreviousPage);
+            Assert.False(paginationResponse.HasNextPage);
+        }
+
+        [Fact]
+        public async Task GetAllAsync_MiddlePage_HasBothButtons()
+        {
+            var (context, service, user1, _, cat1, _, _, _) = await Arrange(true);
+
+            var paginationResponse = await service.GetAllAsync(1, 2, 2);
+
+            Assert.Equal(2, paginationResponse.Items.Count);
+            Assert.Equal(6, paginationResponse.TotalCount);
+            Assert.Equal(3, paginationResponse.TotalPages);
+            Assert.True(paginationResponse.HasPreviousPage);
+            Assert.True(paginationResponse.HasNextPage);
+        }
+
+        [Fact]
+        public async Task GetAllAsync_InvalidPage_ThrowsException()
+        {
+            var (context, service, user1, _, cat1, _, _, _) = await Arrange();
+
+            await Assert.ThrowsAsync<ArgumentException>(() => service.GetAllAsync(1, 0, 1));
+        }
+
+        [Fact]
+        public async Task GetAllAsync_InvalidPageSize_ThrowsException()
+        {
+            var (context, service, user1, _, cat1, _, _, _) = await Arrange();
+
+            await Assert.ThrowsAsync<ArgumentException>(() => service.GetAllAsync(1, 1, 0));
+            await Assert.ThrowsAsync<ArgumentException>(() => service.GetAllAsync(1, 1, 101));
+        }
+
+        [Fact]
+        public async Task GetAllAsync_WithCategoryIdAndPagination_FiltersCorrectly()
+        {
+            var (context, service, user1, _, cat1, _, _, _) = await Arrange();
+            var cat3 = await CreateCategory(context, "Одежда", "Расходы", user1.Id);
+            await CreateTransaction(context, 3200, DateTime.UtcNow.AddSeconds(1), "авокадо", user1.Id, cat1.Id);
+            await CreateTransaction(context, 3200, DateTime.UtcNow.AddSeconds(2), "чудо", user1.Id, cat1.Id);
+            await CreateTransaction(context, 3200, DateTime.UtcNow.AddSeconds(3), "мокко", user1.Id, cat1.Id);
+            await CreateTransaction(context, 3200, DateTime.UtcNow.AddSeconds(4), "шаурма", user1.Id, cat1.Id);
+            await CreateTransaction(context, 3200, DateTime.UtcNow.AddSeconds(5), "протеин", user1.Id, cat1.Id);
+            await CreateTransaction(context, 3200, DateTime.UtcNow.AddSeconds(6), "вансы", user1.Id, cat3.Id);
+            await CreateTransaction(context, 2600, DateTime.UtcNow.AddSeconds(7), "страдивариус", user1.Id, cat3.Id);
+            await CreateTransaction(context, 1700, DateTime.UtcNow.AddSeconds(8), "бершка", user1.Id, cat3.Id);
+
+            var paginationResponse = await service.GetAllAsync(user1.Id, 1, 2, 1);
+
+            Assert.Equal(2, paginationResponse.Items.Count);
+            Assert.Equal(6, paginationResponse.TotalCount);
+            Assert.Equal(3, paginationResponse.TotalPages);
+            Assert.False(paginationResponse.HasPreviousPage);
+            Assert.True(paginationResponse.HasNextPage);
+            Assert.Equal("протеин", paginationResponse.Items[0].Note);
+            Assert.Equal("шаурма", paginationResponse.Items[1].Note);
+        }
+
+        [Fact]
+        public async Task GetAllAsync_ReturnsItemsSortedByDateDescending()
+        {
+            var (context, service, user1, _, cat1, _, tra1, _) = await Arrange();
+            var tra3 = await CreateTransaction(context, 2000, DateTime.UtcNow.AddDays(-1), "бананы", user1.Id, cat1.Id);
+            var tra4 = await CreateTransaction(context, 4000, DateTime.UtcNow.AddDays(-2), "сахар", user1.Id, cat1.Id);
+
+            var paginationResponse = await service.GetAllAsync(user1.Id, 1, 10);
+
+            Assert.True(paginationResponse.Items[0].Date > paginationResponse.Items[1].Date);
+            Assert.True(paginationResponse.Items[1].Date > paginationResponse.Items[2].Date);
         }
     }
 }

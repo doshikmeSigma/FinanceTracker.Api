@@ -8,8 +8,11 @@ namespace FinanceTracker.Api.Services
 {
     public class TransactionService(AppDbContext _context) : ITransactionService
     {
-        public async Task<List<TransactionResponse>> GetAllAsync(int userId, int? categoryId = null)
+        public async Task<PaginationResponse<TransactionResponse>> GetAllAsync(int userId, int page, int pageSize, int? categoryId = null)
         {
+            if (page < 1) throw new ArgumentException("Страница должна быть больше 0");
+            if (pageSize < 1 || pageSize > 100) throw new ArgumentException("Лимит размера страницы от 1 до 100");
+
             IQueryable<Transaction> query;
 
             if (categoryId != null) query = _context.Transactions.Where(t => t.UserId == userId && t.CategoryId == categoryId);
@@ -17,10 +20,22 @@ namespace FinanceTracker.Api.Services
 
             var transactions = await query
                 .OrderByDescending(t => t.Date)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToResponse()
                 .ToListAsync();
 
-            return transactions;
+            var totalCount = await query.CountAsync();
+            int totalPages = (int)Math.Ceiling((float)totalCount / pageSize);
+
+            return new PaginationResponse<TransactionResponse>
+            {
+                Items = transactions,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = totalPages,
+            };
         }
 
         public async Task<TransactionResponse?> GetByIdAsync(int userId, int id)
@@ -40,6 +55,7 @@ namespace FinanceTracker.Api.Services
 
             if (request.Amount <= 0) throw new ArgumentException("Сумма должна быть больше 0");
             if (request.Date > DateTime.UtcNow) throw new ArgumentException("Недопустимы будущие даты");
+
             var transaction = new Transaction
             {
                 Amount = request.Amount,
