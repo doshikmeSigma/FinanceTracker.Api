@@ -16,6 +16,7 @@ A personal finance tracking REST API built with ASP.NET Core.
 - Per-user data ownership: categories and transactions are fully isolated between accounts
 - CRUD for categories and transactions with ownership validation on every input
 - Reports: per-category summary and income/expense totals with date filtering
+- 40+ unit tests (xUnit, InMemory EF Core)
 
 ## Warning
 - The secrets in appsettings.json are left for ease of use in the training project. In production, use user-secrets / environment variables
