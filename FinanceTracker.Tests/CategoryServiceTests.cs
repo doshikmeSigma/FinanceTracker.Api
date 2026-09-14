@@ -25,13 +25,13 @@ namespace FinanceTracker.Tests
         {
             var (_, service, user1, user2, _, _) = await Arrange();
 
-            var categoriesFirst = await service.GetAllAsync(user1.Id);
-            var categoriesSecond = await service.GetAllAsync(user2.Id);
+            var paginationResponse1 = await service.GetAllAsync(user1.Id, 1, 80);
+            var paginationResponse2 = await service.GetAllAsync(user2.Id, 1, 80);
 
-            Assert.Single(categoriesFirst);
-            Assert.Equal(user1.Id, categoriesFirst[0].Id);
-            Assert.Single(categoriesSecond);
-            Assert.Equal(user2.Id, categoriesSecond[0].Id);
+            Assert.Single(paginationResponse1.Items);
+            Assert.Equal(user1.Id, paginationResponse1.Items[0].Id);
+            Assert.Single(paginationResponse2.Items);
+            Assert.Equal(user2.Id, paginationResponse2.Items[0].Id);
         }
 
         [Fact]
@@ -127,6 +127,106 @@ namespace FinanceTracker.Tests
             var category = await service.CreateAsync(user1.Id, new CreateCategoryRequest { Name = "", Type = "Расход" });
 
             Assert.Equal("", category.Name);
+        }
+
+        [Fact]
+        public async Task GetAllAsync_FirstPage_ReturnsCorrectItems()
+        {
+            var (context, service, user1, _, _, _) = await Arrange();
+            await CreateCategory(context, "Транспорт", "Расход", user1.Id);
+            await CreateCategory(context, "Аптека", "Расход", user1.Id);
+            await CreateCategory(context, "Одежда", "Расход", user1.Id);
+            await CreateCategory(context, "Подарки", "Расход", user1.Id);
+
+            var paginationResponse = await service.GetAllAsync(user1.Id, 1, 2);
+
+            Assert.Equal(2, paginationResponse.Items.Count);
+            Assert.Equal(5, paginationResponse.TotalCount);
+            Assert.Equal(3, paginationResponse.TotalPages);
+            Assert.False(paginationResponse.HasPreviousPage);
+            Assert.True(paginationResponse.HasNextPage);
+        }
+
+        [Fact]
+        public async Task GetAllAsync_LastPage_HasNoNextPage()
+        {
+            var (context, service, user1, _, _, _) = await Arrange();
+            await CreateCategory(context, "Транспорт", "Расход", user1.Id);
+            await CreateCategory(context, "Аптека", "Расход", user1.Id);
+            await CreateCategory(context, "Одежда", "Расход", user1.Id);
+            await CreateCategory(context, "Подарки", "Расход", user1.Id);
+
+            var paginationResponse = await service.GetAllAsync(user1.Id, 3, 2);
+
+            Assert.Single(paginationResponse.Items);
+            Assert.True(paginationResponse.HasPreviousPage);
+            Assert.False(paginationResponse.HasNextPage);
+        }
+
+        [Fact]
+        public async Task GetAllAsync_MiddlePage_HasBothButtons()
+        {
+            var (context, service, user1, _, _, _) = await Arrange();
+            await CreateCategory(context, "Транспорт", "Расход", user1.Id);
+            await CreateCategory(context, "Аптека", "Расход", user1.Id);
+            await CreateCategory(context, "Одежда", "Расход", user1.Id);
+            await CreateCategory(context, "Подарки", "Расход", user1.Id);
+
+            var paginationResponse = await service.GetAllAsync(user1.Id, 2, 2);
+
+            Assert.Equal(2, paginationResponse.Items.Count);
+            Assert.True(paginationResponse.HasPreviousPage);
+            Assert.True(paginationResponse.HasNextPage);
+        }
+
+        [Fact]
+        public async Task GetAllAsync_InvalidPage_ThrowsException()
+        {
+            var (_, service, _, _, _, _) = await Arrange();
+
+            await Assert.ThrowsAsync<ArgumentException>(() => service.GetAllAsync(1, 0, 1));
+        }
+
+        [Fact]
+        public async Task GetAllAsync_InvalidPageSize_ThrowsException()
+        {
+            var (_, service, _, _, _, _) = await Arrange();
+
+            await Assert.ThrowsAsync<ArgumentException>(() => service.GetAllAsync(1, 1, 0));
+            await Assert.ThrowsAsync<ArgumentException>(() => service.GetAllAsync(1, 1, 101));
+        }
+
+        [Fact]
+        public async Task GetAllAsync_WithCategoryIdAndPagination_FiltersCorrectly()
+        {
+            var (context, service, user1, _, _, _) = await Arrange();
+            var cat3 = await CreateCategory(context, "Одежда", "Расходы", user1.Id);
+            var cat4 = await CreateCategory(context, "Коммунальные услуги", "Расходы", user1.Id);
+            var cat6 = await CreateCategory(context, "Подарок", "Доход", user1.Id);
+
+
+            var paginationResponse = await service.GetAllAsync(user1.Id, 1, 2);
+
+            Assert.Equal(2, paginationResponse.Items.Count);
+            Assert.Equal(4, paginationResponse.TotalCount);
+            Assert.Equal(2, paginationResponse.TotalPages);
+            Assert.False(paginationResponse.HasPreviousPage);
+            Assert.True(paginationResponse.HasNextPage);
+            Assert.Equal("Коммунальные услуги", paginationResponse.Items[0].Name);
+            Assert.Equal("Магазин", paginationResponse.Items[1].Name);
+        }
+
+        [Fact]
+        public async Task GetAllAsync_ReturnsItemsSortedByName()
+        {
+            var (context, service, user1, _, _, _) = await Arrange();
+            await CreateCategory(context, "Топливо", "Расход", user1.Id);
+            await CreateCategory(context, "Масло", "Расход", user1.Id);
+
+            var paginationResponse = await service.GetAllAsync(user1.Id, 1, 10);
+
+            Assert.True(string.Compare(paginationResponse.Items[0].Name, paginationResponse.Items[1].Name) < 0);
+            Assert.True(string.Compare(paginationResponse.Items[1].Name, paginationResponse.Items[2].Name) < 0);
         }
     }
 }

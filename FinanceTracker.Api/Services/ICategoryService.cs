@@ -1,12 +1,11 @@
 ﻿using FinanceTracker.Api.DTOs;
 using FinanceTracker.Api.Models;
-using Microsoft.AspNetCore.Mvc;
 
 namespace FinanceTracker.Api.Services
 {
     public interface ICategoryService
     {
-        Task<List<Category>> GetAllAsync(int userId);
+        Task<PaginationResponse<CategoryResponse>> GetAllAsync(int userId, int page, int pageSize);
         Task<Category?> GetByIdAsync(int userId, int id);
         Task<Category> CreateAsync(int userId, CreateCategoryRequest request);
         Task<bool> UpdateAsync(int userId, int id, UpdateCategoryRequest request);

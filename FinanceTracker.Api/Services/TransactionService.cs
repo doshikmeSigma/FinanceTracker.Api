@@ -33,8 +33,7 @@ namespace FinanceTracker.Api.Services
                 Items = transactions,
                 TotalCount = totalCount,
                 Page = page,
-                PageSize = pageSize,
-                TotalPages = totalPages,
+                PageSize = pageSize
             };
         }
 

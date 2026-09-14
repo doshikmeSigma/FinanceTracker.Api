@@ -12,11 +12,9 @@ namespace FinanceTracker.Api.Controllers
     public class CategoriesController(ICategoryService _service) : ControllerBase
     {
         [HttpGet]
-        public async Task<ActionResult<List<CategoryResponse>>> GetAll()
+        public async Task<ActionResult<PaginationResponse<CategoryResponse>>> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
-            return (await _service.GetAllAsync(User.GetId()))
-                .Select(c => c.ToCategoryResponse())
-                .ToList();
+            return Ok(await _service.GetAllAsync(User.GetId(), page, pageSize));
         }
 
         [HttpGet("{id}")]
