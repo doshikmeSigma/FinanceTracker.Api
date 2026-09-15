@@ -5,6 +5,7 @@ A personal finance tracking REST API built with ASP.NET Core.
 ## Tech Stack
 - ASP.NET Core Web API (.NET 10)
 - Entity Framework Core + SQLite
+- Docker
 - xUnit
 - JWT Bearer authentication (HMAC-SHA256)
 - PBKDF2 password hashing with per-user salt
@@ -18,11 +19,18 @@ A personal finance tracking REST API built with ASP.NET Core.
 - Reports: per-category summary and income/expense totals with date filtering
 - 50+ unit tests (xUnit, InMemory EF Core)
 - Pagination for transactions and categories
+- Data validation with DTO attributes and service-level checks
 
 ## Warning
 - The secrets in appsettings.json are left for ease of use in the training project. In production, use user-secrets / environment variables
+
+## Docker
+```bash
+docker compose up --build
+```
 
 ## Getting Started
 ```bash
 dotnet ef database update
 dotnet run --project FinanceTracker.Api
+```

@@ -1,0 +1,9 @@
+**/.git
+**/bin
+**/obj
+**/out
+**/.vs
+**/.vscode
+**/finance.db
+**/finance.db-shm
+**/finance.db-wal
